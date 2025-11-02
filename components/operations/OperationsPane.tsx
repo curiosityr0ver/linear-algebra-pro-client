@@ -115,17 +115,17 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
       ? selectedMatrixB : true);
 
   return (
-    <div className="w-full border-t-2 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 mr-80">
-      <div className="p-6 max-w-6xl mx-auto px-8 sm:px-16">
-        <h2 className="text-2xl font-semibold mb-4 text-black dark:text-zinc-50">
-          Matrix Operations
+    <div className="w-full border-2 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
+      <div className="p-4">
+        <h2 className="text-lg font-semibold mb-3 text-black dark:text-zinc-50">
+          Operations
         </h2>
 
         {/* Operation Buttons */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-wrap gap-1.5 mb-3">
           <button
             onClick={() => handleOperationSelect(null)}
-            className={`px-4 py-2 rounded-lg border-2 transition-colors text-sm font-medium ${
+            className={`px-3 py-1.5 rounded-lg border-2 transition-colors text-xs font-medium ${
               selectedOperation === null
                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400'
                 : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 hover:border-blue-300 dark:hover:border-blue-600'
@@ -138,7 +138,7 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
               key={op.id}
               onClick={() => !op.disabled && handleOperationSelect(op.id as OperationType)}
               disabled={op.disabled}
-              className={`px-4 py-2 rounded-lg border-2 transition-colors text-sm font-medium ${
+              className={`px-3 py-1.5 rounded-lg border-2 transition-colors text-xs font-medium ${
                 op.disabled
                   ? 'border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed'
                   : selectedOperation === op.id
@@ -153,18 +153,18 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
 
         {/* Matrix Selection */}
         {selectedOperation && (
-          <div className="mb-6 space-y-4">
-            <div className="flex flex-wrap gap-4 items-end">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium mb-2 text-black dark:text-zinc-50">
-                  Select Matrix A
+          <div className="mb-3 space-y-2">
+            <div className="flex flex-col gap-2">
+              <div>
+                <label className="block text-xs font-medium mb-1 text-black dark:text-zinc-50">
+                  Matrix A
                 </label>
                 <select
                   value={matrixAId}
                   onChange={(e) => setMatrixAId(e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
+                  className="w-full px-2 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
                 >
-                  <option value="">Choose matrix...</option>
+                  <option value="">Choose...</option>
                   {savedMatrices.map((matrix) => (
                     <option key={matrix.id} value={matrix.id}>
                       {matrix.name} ({matrix.dimensions.rows}×{matrix.dimensions.cols})
@@ -174,16 +174,16 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
               </div>
 
               {(selectedOperation === 'add' || selectedOperation === 'multiply' || selectedOperation === 'subtract') && (
-                <div className="flex-1 min-w-[200px]">
-                  <label className="block text-sm font-medium mb-2 text-black dark:text-zinc-50">
-                    Select Matrix B
+                <div>
+                  <label className="block text-xs font-medium mb-1 text-black dark:text-zinc-50">
+                    Matrix B
                   </label>
                   <select
                     value={matrixBId}
                     onChange={(e) => setMatrixBId(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
+                    className="w-full px-2 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
                   >
-                    <option value="">Choose matrix...</option>
+                    <option value="">Choose...</option>
                     {savedMatrices.map((matrix) => (
                       <option key={matrix.id} value={matrix.id}>
                         {matrix.name} ({matrix.dimensions.rows}×{matrix.dimensions.cols})
@@ -197,16 +197,16 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
                 <button
                   onClick={handleExecute}
                   disabled={!canExecute || isLoading}
-                  className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white font-medium transition-colors"
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
                 >
                   {isLoading ? 'Processing...' : 'Execute'}
                 </button>
                 {result && resultDimensions && (
                   <button
                     onClick={handleSaveResult}
-                    className="px-6 py-2 rounded-lg border-2 border-green-600 bg-green-50 dark:bg-green-950/20 hover:bg-green-100 dark:hover:bg-green-950/30 text-green-700 dark:text-green-400 font-medium transition-colors"
+                    className="px-3 py-1.5 rounded-lg border-2 border-green-600 bg-green-50 dark:bg-green-950/20 hover:bg-green-100 dark:hover:bg-green-950/30 text-green-700 dark:text-green-400 text-xs font-medium transition-colors"
                   >
-                    Save Result
+                    Save
                   </button>
                 )}
               </div>
@@ -214,21 +214,15 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
 
             {/* Selected Matrices Preview */}
             {(selectedMatrixA || selectedMatrixB) && (
-              <div className="flex flex-wrap gap-4 mt-4">
+              <div className="flex flex-wrap gap-2 mt-2">
                 {selectedMatrixA && (
-                  <div className="flex-1 min-w-[200px]">
-                    <p className="text-sm font-medium mb-2 text-black dark:text-zinc-50">Matrix A</p>
-                    <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                      {selectedMatrixA.name} ({selectedMatrixA.dimensions.rows}×{selectedMatrixA.dimensions.cols})
-                    </div>
+                  <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                    A: {selectedMatrixA.name} ({selectedMatrixA.dimensions.rows}×{selectedMatrixA.dimensions.cols})
                   </div>
                 )}
                 {selectedMatrixB && (
-                  <div className="flex-1 min-w-[200px]">
-                    <p className="text-sm font-medium mb-2 text-black dark:text-zinc-50">Matrix B</p>
-                    <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                      {selectedMatrixB.name} ({selectedMatrixB.dimensions.rows}×{selectedMatrixB.dimensions.cols})
-                    </div>
+                  <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                    B: {selectedMatrixB.name} ({selectedMatrixB.dimensions.rows}×{selectedMatrixB.dimensions.cols})
                   </div>
                 )}
               </div>
@@ -238,25 +232,34 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
 
         {/* Error Message */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-700">
-            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+          <div className="mb-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-700">
+            <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
           </div>
         )}
 
-        {/* Result Display */}
+        {/* Result Display - Show below the pane */}
         {result && resultDimensions && (
-          <div className="mt-6 p-4 border-2 border-green-300 dark:border-green-700 rounded-lg bg-green-50 dark:bg-green-950/20">
-            <h3 className="text-lg font-semibold mb-4 text-black dark:text-zinc-50">
+          <div className="mt-3 p-3 border-2 border-green-300 dark:border-green-700 rounded-lg bg-green-50 dark:bg-green-950/20">
+            <h3 className="text-sm font-semibold mb-2 text-black dark:text-zinc-50">
               Result ({resultDimensions.rows} × {resultDimensions.cols})
             </h3>
-            <MatrixDisplay matrix={result} dimensions={resultDimensions} />
+            <div className="text-xs text-zinc-600 dark:text-zinc-400">
+              {result.map((row, i) => (
+                <div key={i} className="flex gap-1 mb-1">
+                  {row.map((val, j) => (
+                    <span key={j} className="font-mono">{val}</span>
+                  ))}
+                </div>
+              )).slice(0, 3)}
+              {result.length > 3 && <div className="text-xs">...</div>}
+            </div>
           </div>
         )}
 
         {/* Empty State */}
         {!selectedOperation && (
-          <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-            <p>Select an operation to begin</p>
+          <div className="text-center py-4 text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs">Select an operation</p>
           </div>
         )}
       </div>

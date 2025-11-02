@@ -5,7 +5,7 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle }: HeaderProps) {
   return (
-    <div className="w-full mb-8">
+    <div className="w-full">
       <h1 className="text-4xl font-bold mb-2 text-black dark:text-zinc-50">
         {title}
       </h1>

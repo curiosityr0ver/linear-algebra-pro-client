@@ -86,13 +86,27 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <div className="flex flex-1 overflow-hidden">
         {/* Main content area - adjusts for sidebar */}
-        <main className="flex-1 flex flex-col items-center py-16 px-8 sm:px-16 bg-white dark:bg-black mr-80 overflow-y-auto">
-          <Header 
-            title="Linear Algebra Pro"
-            subtitle="Input matrix values as comma-separated numbers"
-          />
+        <main className="flex-1 flex flex-col items-center bg-white dark:bg-black mr-80 overflow-y-auto">
+          {/* Header and Operations Pane side by side */}
+          <div className="w-full max-w-6xl px-8 sm:px-16 py-8">
+            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center mb-6">
+              <div className="flex-1">
+                <Header 
+                  title="Linear Algebra Pro"
+                  subtitle="Input matrix values as comma-separated numbers"
+                />
+              </div>
+              <div className="flex-1 lg:max-w-md">
+                <OperationsPane
+                  savedMatrices={savedMatrices}
+                  onSaveResult={handleSaveOperationResult}
+                />
+              </div>
+            </div>
+          </div>
 
-          <MatrixInput
+          <div className="w-full max-w-6xl px-8 sm:px-16 pb-16">
+            <MatrixInput
             value={input}
             onChange={setInput}
             onReset={handleResetSelection}
@@ -128,6 +142,7 @@ export default function HomePage() {
           {!isValidInput && input.trim() === '' && (
             <EmptyState message="Enter comma-separated values to get started" />
           )}
+          </div>
         </main>
 
         {/* Right sidebar for saved matrices - always visible */}
@@ -137,12 +152,6 @@ export default function HomePage() {
           onDelete={handleDeleteMatrix}
         />
       </div>
-
-      {/* Operations Pane at the bottom */}
-      <OperationsPane
-        savedMatrices={savedMatrices}
-        onSaveResult={handleSaveOperationResult}
-      />
 
       {/* Edit Matrix Modal */}
       {editingMatrix && (
