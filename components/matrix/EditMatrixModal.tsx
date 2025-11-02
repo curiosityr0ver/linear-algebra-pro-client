@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { SavedMatrix, parseMatrixInput, calculatePossibleDimensions, reshapeToMatrix } from '@/lib/utils/matrix';
 import MatrixInput from './MatrixInput';
 import DimensionSelector from './DimensionSelector';
@@ -18,6 +18,7 @@ export default function EditMatrixModal({ matrix, onSave, onCancel }: EditMatrix
   const [selectedDimensions, setSelectedDimensions] = useState<SavedMatrix['dimensions']>(matrix.dimensions);
 
   const originalMatrixLength = useMemo(() => matrix.matrix.flat().length, [matrix]);
+  const prevInputLengthRef = useRef<number>(matrix.matrix.flat().length);
 
   // Parse input and validate
   const parsedValues = useMemo(() => parseMatrixInput(input), [input]);
@@ -36,17 +37,23 @@ export default function EditMatrixModal({ matrix, onSave, onCancel }: EditMatrix
     return reshapeToMatrix(parsedValues, selectedDimensions.rows, selectedDimensions.cols);
   }, [parsedValues, selectedDimensions]);
 
-  // Auto-select dimensions if they match original count
+  // Auto-select dimensions only when input length actually changes (not when user manually selects dimensions)
   useEffect(() => {
-    if (parsedValues && parsedValues.length === originalMatrixLength) {
+    const currentLength = parsedValues?.length ?? 0;
+    const prevLength = prevInputLengthRef.current;
+    
+    // Only auto-select if input length changed AND matches original
+    if (currentLength !== prevLength && currentLength === originalMatrixLength && parsedValues) {
       const matchingDim = possibleDimensions.find(
         (dim) => dim.rows === matrix.dimensions.rows && dim.cols === matrix.dimensions.cols
       );
-      if (matchingDim && (selectedDimensions.rows !== matchingDim.rows || selectedDimensions.cols !== matchingDim.cols)) {
+      if (matchingDim) {
         setSelectedDimensions(matchingDim);
       }
     }
-  }, [parsedValues, possibleDimensions, matrix.dimensions, originalMatrixLength, selectedDimensions]);
+    
+    prevInputLengthRef.current = currentLength;
+  }, [parsedValues?.length, possibleDimensions, matrix.dimensions, originalMatrixLength]); // Only depend on input length, not selectedDimensions
 
   const handleSave = () => {
     if (editedMatrix && selectedDimensions) {
@@ -80,10 +87,7 @@ export default function EditMatrixModal({ matrix, onSave, onCancel }: EditMatrix
         {/* Matrix Input */}
         <MatrixInput
           value={input}
-          onChange={(value) => {
-            setInput(value);
-            setSelectedDimensions(matrix.dimensions);
-          }}
+          onChange={setInput}
           error={hasError}
           isValid={isValidInput}
           valueCount={parsedValues?.length || 0}

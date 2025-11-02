@@ -11,6 +11,7 @@ import SaveMatrixButton from '@/components/matrix/SaveMatrixButton';
 import Sidebar from '@/components/ui/Sidebar';
 import EditMatrixModal from '@/components/matrix/EditMatrixModal';
 import EmptyState from '@/components/ui/EmptyState';
+import OperationsPane from '@/components/operations/OperationsPane';
 
 export default function HomePage() {
   const [input, setInput] = useState('');
@@ -76,58 +77,71 @@ export default function HomePage() {
     deleteMatrix(id);
   };
 
+  const handleSaveOperationResult = (result: number[][], dimensions: MatrixDimensions) => {
+    const name = generateNextMatrixName();
+    saveMatrix(name, result, dimensions);
+  };
+
   return (
-    <div className="flex min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      {/* Main content area - adjusts for sidebar */}
-      <main className="flex-1 flex flex-col items-center py-16 px-8 sm:px-16 bg-white dark:bg-black mr-80">
-        <Header 
-          title="Linear Algebra Pro"
-          subtitle="Input matrix values as comma-separated numbers"
-        />
-
-        <MatrixInput
-          value={input}
-          onChange={setInput}
-          onReset={handleResetSelection}
-          error={hasError}
-          isValid={isValidInput}
-          valueCount={parsedValues?.length || 0}
-        />
-
-        {isValidInput && possibleDimensions.length > 0 && (
-          <DimensionSelector
-            dimensions={possibleDimensions}
-            selectedDimensions={selectedDimensions}
-            onSelect={setSelectedDimensions}
+    <div className="flex flex-col min-h-screen bg-zinc-50 font-sans dark:bg-black">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Main content area - adjusts for sidebar */}
+        <main className="flex-1 flex flex-col items-center py-16 px-8 sm:px-16 bg-white dark:bg-black mr-80 overflow-y-auto">
+          <Header 
+            title="Linear Algebra Pro"
+            subtitle="Input matrix values as comma-separated numbers"
           />
-        )}
 
-        {matrix && selectedDimensions && (
-          <div className="w-full mb-8">
-            <MatrixDisplay
-              matrix={matrix}
-              dimensions={selectedDimensions}
+          <MatrixInput
+            value={input}
+            onChange={setInput}
+            onReset={handleResetSelection}
+            error={hasError}
+            isValid={isValidInput}
+            valueCount={parsedValues?.length || 0}
+          />
+
+          {isValidInput && possibleDimensions.length > 0 && (
+            <DimensionSelector
+              dimensions={possibleDimensions}
+              selectedDimensions={selectedDimensions}
+              onSelect={setSelectedDimensions}
             />
-            <div className="mt-4 flex justify-start">
-              <SaveMatrixButton
+          )}
+
+          {matrix && selectedDimensions && (
+            <div className="w-full mb-8">
+              <MatrixDisplay
                 matrix={matrix}
                 dimensions={selectedDimensions}
-                onSave={handleSaveMatrix}
               />
+              <div className="mt-4 flex justify-start">
+                <SaveMatrixButton
+                  matrix={matrix}
+                  dimensions={selectedDimensions}
+                  onSave={handleSaveMatrix}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {!isValidInput && input.trim() === '' && (
-          <EmptyState message="Enter comma-separated values to get started" />
-        )}
-      </main>
+          {!isValidInput && input.trim() === '' && (
+            <EmptyState message="Enter comma-separated values to get started" />
+          )}
+        </main>
 
-      {/* Right sidebar for saved matrices - always visible */}
-      <Sidebar
-        matrices={savedMatrices}
-        onEdit={handleEditMatrix}
-        onDelete={handleDeleteMatrix}
+        {/* Right sidebar for saved matrices - always visible */}
+        <Sidebar
+          matrices={savedMatrices}
+          onEdit={handleEditMatrix}
+          onDelete={handleDeleteMatrix}
+        />
+      </div>
+
+      {/* Operations Pane at the bottom */}
+      <OperationsPane
+        savedMatrices={savedMatrices}
+        onSaveResult={handleSaveOperationResult}
       />
 
       {/* Edit Matrix Modal */}
