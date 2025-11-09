@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { parseMatrixInput, calculatePossibleDimensions, reshapeToMatrix, MatrixDimensions, SavedMatrix } from '@/lib/utils/matrix';
 import { useMatrixStorage } from '@/lib/hooks/useMatrixStorage';
 import Header from '@/components/ui/Header';
+import Navigation from '@/components/ui/Navigation';
 import MatrixInput from '@/components/matrix/MatrixInput';
 import DimensionSelector from '@/components/matrix/DimensionSelector';
 import MatrixDisplay from '@/components/matrix/MatrixDisplay';
@@ -89,6 +90,7 @@ export default function HomePage() {
         <main className="flex-1 flex flex-col items-center bg-white dark:bg-black mr-80 overflow-y-auto">
           {/* Header and Operations Pane side by side */}
           <div className="w-full max-w-6xl px-8 sm:px-16 py-8">
+            <Navigation />
             <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center mb-6">
               <div className="flex-1">
                 <Header 

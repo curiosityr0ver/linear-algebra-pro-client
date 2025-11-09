@@ -402,3 +402,120 @@ export async function multiplyMatricesLegacy(
     };
   }
 }
+
+// ============================================================================
+// Machine Learning - Linear Regression
+// ============================================================================
+
+export interface LinearRegressionOptions {
+  learningRate?: number;
+  maxIterations?: number;
+  tolerance?: number;
+  method?: 'sgd' | 'momentum' | 'adam';
+  adamBeta1?: number;
+  adamBeta2?: number;
+  adamEpsilon?: number;
+}
+
+export interface LinearRegressionTrainRequest {
+  X: Matrix;
+  y: Matrix;
+  options?: LinearRegressionOptions;
+  lossFunction?: 'mse' | 'binary_crossentropy';
+}
+
+export interface LinearRegressionTrainResponse {
+  modelId: string;
+  result: {
+    weights: MatrixResult;
+    bias: MatrixResult;
+    loss_history: number[];
+    converged: boolean;
+    iterations: number;
+    final_loss: number;
+  };
+}
+
+export interface LinearRegressionPredictRequest {
+  X: Matrix;
+}
+
+export interface LinearRegressionPredictResponse {
+  predictions: MatrixResult;
+}
+
+export interface ModelInfo {
+  modelId: string;
+  type: string;
+  createdAt: string;
+  [key: string]: any;
+}
+
+export interface ModelListResponse {
+  models: ModelInfo[];
+}
+
+/**
+ * Train a linear regression model
+ */
+export async function trainLinearRegression(
+  X: number[][],
+  y: number[][],
+  options?: LinearRegressionOptions,
+  lossFunction: 'mse' | 'binary_crossentropy' = 'mse'
+): Promise<LinearRegressionTrainResponse> {
+  return apiRequest<LinearRegressionTrainResponse>('/ml/linear-regression/train', {
+    method: 'POST',
+    body: JSON.stringify({
+      X: toMatrix(X),
+      y: toMatrix(y),
+      options: options || {},
+      lossFunction,
+    }),
+  });
+}
+
+/**
+ * Make predictions using a trained linear regression model
+ */
+export async function predictLinearRegression(
+  modelId: string,
+  X: number[][]
+): Promise<LinearRegressionPredictResponse> {
+  return apiRequest<LinearRegressionPredictResponse>(
+    `/ml/linear-regression/${modelId}/predict`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        X: toMatrix(X),
+      }),
+    }
+  );
+}
+
+/**
+ * List all trained models
+ */
+export async function listModels(): Promise<ModelListResponse> {
+  return apiRequest<ModelListResponse>('/ml/models', {
+    method: 'GET',
+  });
+}
+
+/**
+ * Get information about a specific model
+ */
+export async function getModelInfo(modelId: string): Promise<ModelInfo> {
+  return apiRequest<ModelInfo>(`/ml/models/${modelId}`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Delete a trained model
+ */
+export async function deleteModel(modelId: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/ml/models/${modelId}`, {
+    method: 'DELETE',
+  });
+}
