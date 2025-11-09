@@ -2,7 +2,14 @@
 
 import { useState } from 'react';
 import { SavedMatrix, MatrixDimensions } from '@/lib/utils/matrix';
-import { addMatrices, multiplyMatrices, MatrixOperationResponse } from '@/lib/utils/api';
+import { 
+  addMatrices, 
+  multiplyMatrices, 
+  subtractMatrices,
+  transposeMatrix,
+  calculateDeterminant,
+  MatrixOperationResponse 
+} from '@/lib/utils/api';
 import MatrixDisplay from '@/components/matrix/MatrixDisplay';
 
 interface OperationsPaneProps {
@@ -20,6 +27,8 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
   const [resultDimensions, setResultDimensions] = useState<MatrixDimensions | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scalarResult, setScalarResult] = useState<number | null>(null);
+  const [scalarResultLabel, setScalarResultLabel] = useState<string>('');
 
   const selectedMatrixA = savedMatrices.find(m => m.id === matrixAId);
   const selectedMatrixB = savedMatrices.find(m => m.id === matrixBId);
@@ -27,9 +36,9 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
   const operations = [
     { id: 'add', label: 'Add (A + B)', needsTwo: true },
     { id: 'multiply', label: 'Multiply (A × B)', needsTwo: true },
-    { id: 'subtract', label: 'Subtract (A - B)', needsTwo: true, disabled: true },
-    { id: 'transpose', label: 'Transpose', needsTwo: false, disabled: true },
-    { id: 'determinant', label: 'Determinant', needsTwo: false, disabled: true },
+    { id: 'subtract', label: 'Subtract (A - B)', needsTwo: true },
+    { id: 'transpose', label: 'Transpose', needsTwo: false },
+    { id: 'determinant', label: 'Determinant', needsTwo: false },
     { id: 'inverse', label: 'Inverse', needsTwo: false, disabled: true },
   ];
 
@@ -38,6 +47,8 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
     setResult(null);
     setResultDimensions(null);
     setError(null);
+    setScalarResult(null);
+    setScalarResultLabel('');
     
     // Reset selections when switching operations
     if (operation === null) {
@@ -59,7 +70,7 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
     setIsLoading(true);
 
     try {
-      let response: MatrixOperationResponse | null = null;
+      let response: MatrixOperationResponse | { determinant: number } | null = null;
 
       if (selectedOperation === 'add') {
         if (!selectedMatrixB) {
@@ -75,20 +86,35 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
           return;
         }
         response = await multiplyMatrices(selectedMatrixA.matrix, selectedMatrixB.matrix);
+      } else if (selectedOperation === 'subtract') {
+        if (!selectedMatrixB) {
+          setError('Please select both matrices');
+          setIsLoading(false);
+          return;
+        }
+        response = await subtractMatrices(selectedMatrixA.matrix, selectedMatrixB.matrix);
+      } else if (selectedOperation === 'transpose') {
+        response = await transposeMatrix(selectedMatrixA.matrix);
+      } else if (selectedOperation === 'determinant') {
+        const detResponse = await calculateDeterminant(selectedMatrixA.matrix);
+        setResult(null);
+        setResultDimensions(null);
+        setScalarResult(detResponse.determinant);
+        setScalarResultLabel('Determinant');
+        setError(null);
+        setIsLoading(false);
+        return;
       }
 
-      if (response) {
-        if (response.success) {
-          setResult(response.result);
-          setResultDimensions({
-            rows: response.dimensions.rows,
-            cols: response.dimensions.columns,
-          });
-          setError(null);
-        } else {
-          setError(response.error || 'Operation failed');
-          setResult(null);
-        }
+      if (response && 'result' in response) {
+        setResult(response.result.data);
+        setResultDimensions({
+          rows: response.result.rows,
+          cols: response.result.cols,
+        });
+        setScalarResult(null);
+        setScalarResultLabel('');
+        setError(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -112,7 +138,8 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
 
   const canExecute = selectedOperation && selectedMatrixA && 
     ((selectedOperation === 'add' || selectedOperation === 'multiply' || selectedOperation === 'subtract') 
-      ? selectedMatrixB : true);
+      ? selectedMatrixB 
+      : (selectedOperation === 'transpose' || selectedOperation === 'determinant'));
 
   return (
     <div className="w-full border-2 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
@@ -234,6 +261,18 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
         {error && (
           <div className="mb-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-700">
             <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
+        {/* Scalar Result Display (e.g., Determinant) */}
+        {scalarResult !== null && (
+          <div className="mt-3 p-3 border-2 border-blue-300 dark:border-blue-700 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+            <h3 className="text-sm font-semibold mb-2 text-black dark:text-zinc-50">
+              {scalarResultLabel}
+            </h3>
+            <div className="text-lg font-mono font-bold text-blue-700 dark:text-blue-400">
+              {scalarResult}
+            </div>
           </div>
         )}
 

@@ -1,15 +1,338 @@
 /**
  * API utility functions for matrix operations
+ * Updated to match Linear Algebra Pro API documentation
  */
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
-export interface MatrixOperationRequest {
-  matrixA: number[][];
-  matrixB: number[][];
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+export interface Matrix {
+  data: number[][];
+  rows?: number;
+  cols?: number;
+  shape?: [number, number];
+}
+
+export interface MatrixResult {
+  data: number[][];
+  rows: number;
+  cols: number;
+  shape: [number, number];
 }
 
 export interface MatrixOperationResponse {
+  result: MatrixResult;
+  metadata?: {
+    operation: string;
+    [key: string]: any;
+  };
+}
+
+export interface MatrixInfoResponse {
+  matrix: MatrixResult;
+  properties: {
+    rows: number;
+    cols: number;
+    shape: [number, number];
+    isSquare: boolean;
+    size: number;
+  };
+}
+
+export interface TraceResponse {
+  trace: number;
+  matrix: MatrixResult;
+}
+
+export interface DeterminantResponse {
+  determinant: number;
+  matrix: MatrixResult;
+}
+
+export interface EigenvaluesResponse {
+  eigenvalues: number[];
+  matrix: MatrixResult;
+}
+
+export interface ScalarOperationRequest {
+  matrixA: Matrix;
+  scalar: number;
+}
+
+export interface ApiError {
+  statusCode: number;
+  message: string | string[];
+  error: string;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Convert a 2D array to Matrix format
+ */
+function toMatrix(data: number[][]): Matrix {
+  return {
+    data,
+    rows: data.length,
+    cols: data[0]?.length || 0,
+    shape: [data.length, data[0]?.length || 0],
+  };
+}
+
+/**
+ * Handle API errors
+ */
+async function handleApiError(response: Response): Promise<never> {
+  let errorData: ApiError | any;
+  try {
+    errorData = await response.json();
+  } catch {
+    errorData = { message: `HTTP error! status: ${response.status}` };
+  }
+  
+  const errorMessage = Array.isArray(errorData.message) 
+    ? errorData.message.join(', ') 
+    : errorData.message || `HTTP error! status: ${response.status}`;
+  
+  throw new Error(errorMessage);
+}
+
+/**
+ * Make API request with error handling
+ */
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
+}
+
+// ============================================================================
+// Matrix Creation
+// ============================================================================
+
+/**
+ * Create an identity matrix
+ */
+export async function createIdentityMatrix(size: number): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>(`/matrix/create/identity/${size}`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Create a zeros matrix
+ */
+export async function createZerosMatrix(rows: number, cols: number): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>(`/matrix/create/zeros?rows=${rows}&cols=${cols}`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Create a ones matrix
+ */
+export async function createOnesMatrix(rows: number, cols: number): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>(`/matrix/create/ones?rows=${rows}&cols=${cols}`, {
+    method: 'POST',
+  });
+}
+
+// ============================================================================
+// Arithmetic Operations
+// ============================================================================
+
+/**
+ * Add two matrices
+ */
+export async function addMatrices(
+  matrixA: number[][],
+  matrixB: number[][]
+): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>('/matrix/add', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrixA: toMatrix(matrixA),
+      matrixB: toMatrix(matrixB),
+    }),
+  });
+}
+
+/**
+ * Subtract two matrices
+ */
+export async function subtractMatrices(
+  matrixA: number[][],
+  matrixB: number[][]
+): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>('/matrix/subtract', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrixA: toMatrix(matrixA),
+      matrixB: toMatrix(matrixB),
+    }),
+  });
+}
+
+/**
+ * Multiply two matrices
+ */
+export async function multiplyMatrices(
+  matrixA: number[][],
+  matrixB: number[][]
+): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>('/matrix/multiply', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrixA: toMatrix(matrixA),
+      matrixB: toMatrix(matrixB),
+    }),
+  });
+}
+
+/**
+ * Multiply matrix by scalar
+ */
+export async function multiplyByScalar(
+  matrix: number[][],
+  scalar: number
+): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>('/matrix/multiply-scalar', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrixA: toMatrix(matrix),
+      scalar,
+    }),
+  });
+}
+
+/**
+ * Divide matrix by scalar
+ */
+export async function divideByScalar(
+  matrix: number[][],
+  scalar: number
+): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>('/matrix/divide-scalar', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrixA: toMatrix(matrix),
+      scalar,
+    }),
+  });
+}
+
+// ============================================================================
+// Matrix Properties
+// ============================================================================
+
+/**
+ * Transpose a matrix
+ */
+export async function transposeMatrix(matrix: number[][]): Promise<MatrixOperationResponse> {
+  return apiRequest<MatrixOperationResponse>('/matrix/transpose', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrix: toMatrix(matrix),
+    }),
+  });
+}
+
+/**
+ * Calculate trace of a matrix
+ */
+export async function calculateTrace(matrix: number[][]): Promise<TraceResponse> {
+  return apiRequest<TraceResponse>('/matrix/trace', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrix: toMatrix(matrix),
+    }),
+  });
+}
+
+/**
+ * Calculate determinant of a matrix
+ */
+export async function calculateDeterminant(matrix: number[][]): Promise<DeterminantResponse> {
+  return apiRequest<DeterminantResponse>('/matrix/determinant', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrix: toMatrix(matrix),
+    }),
+  });
+}
+
+/**
+ * Calculate eigenvalues of a matrix
+ */
+export async function calculateEigenvalues(matrix: number[][]): Promise<EigenvaluesResponse> {
+  return apiRequest<EigenvaluesResponse>('/matrix/eigenvalues', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrix: toMatrix(matrix),
+    }),
+  });
+}
+
+// ============================================================================
+// Matrix Information
+// ============================================================================
+
+/**
+ * Get matrix properties
+ */
+export async function getMatrixInfo(matrix: number[][]): Promise<MatrixInfoResponse> {
+  return apiRequest<MatrixInfoResponse>('/matrix/info', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrix: toMatrix(matrix),
+    }),
+  });
+}
+
+/**
+ * Check if two matrices are equal
+ */
+export async function checkMatrixEquality(
+  matrixA: number[][],
+  matrixB: number[][],
+  tolerance: number = 1e-10
+): Promise<{ equal: boolean }> {
+  return apiRequest<{ equal: boolean }>(`/matrix/equals?tolerance=${tolerance}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      matrixA: toMatrix(matrixA),
+      matrixB: toMatrix(matrixB),
+    }),
+  });
+}
+
+// ============================================================================
+// Legacy Support (for backward compatibility)
+// ============================================================================
+
+/**
+ * Legacy response format for backward compatibility
+ * Converts new API response to old format
+ */
+export interface LegacyMatrixOperationResponse {
   success: boolean;
   result: number[][];
   operation: string;
@@ -21,31 +344,33 @@ export interface MatrixOperationResponse {
 }
 
 /**
- * Add two matrices
+ * Convert new API response to legacy format
  */
-export async function addMatrices(
+function toLegacyResponse(
+  response: MatrixOperationResponse,
+  operation: string
+): LegacyMatrixOperationResponse {
+  return {
+    success: true,
+    result: response.result.data,
+    operation,
+    dimensions: {
+      rows: response.result.rows,
+      columns: response.result.cols,
+    },
+  };
+}
+
+/**
+ * Legacy add matrices function (with error handling)
+ */
+export async function addMatricesLegacy(
   matrixA: number[][],
   matrixB: number[][]
-): Promise<MatrixOperationResponse> {
+): Promise<LegacyMatrixOperationResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/matrices/add`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        matrixA,
-        matrixB,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
+    const response = await addMatrices(matrixA, matrixB);
+    return toLegacyResponse(response, 'addition');
   } catch (error) {
     return {
       success: false,
@@ -58,31 +383,15 @@ export async function addMatrices(
 }
 
 /**
- * Multiply two matrices
+ * Legacy multiply matrices function (with error handling)
  */
-export async function multiplyMatrices(
+export async function multiplyMatricesLegacy(
   matrixA: number[][],
   matrixB: number[][]
-): Promise<MatrixOperationResponse> {
+): Promise<LegacyMatrixOperationResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/matrices/multiply`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        matrixA,
-        matrixB,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
+    const response = await multiplyMatrices(matrixA, matrixB);
+    return toLegacyResponse(response, 'multiplication');
   } catch (error) {
     return {
       success: false,
@@ -93,4 +402,3 @@ export async function multiplyMatrices(
     };
   }
 }
-
