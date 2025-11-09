@@ -7,7 +7,7 @@ import SaveMatrixButton from './SaveMatrixButton';
 interface MatrixPreviewProps {
   matrix: number[][];
   dimensions: MatrixDimensions;
-  onSave: (name: string) => void;
+  onSave: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
