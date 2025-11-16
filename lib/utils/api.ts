@@ -447,7 +447,8 @@ export interface LinearRegressionPredictResponse {
 export interface ModelInfo {
   modelId: string;
   type: string;
-  createdAt: string;
+  created?: string; // API returns "created" field
+  createdAt?: string; // Internal field for consistency
   [key: string]: any;
 }
 

@@ -40,6 +40,72 @@ export default function LinearRegressionPage() {
   const [predictionMatrix, setPredictionMatrix] = useState<number[][] | null>(null);
   const [predictions, setPredictions] = useState<number[][] | null>(null);
 
+  // Helper function to get model date
+  const getModelDate = (model: ModelInfo): Date => {
+    const dateString = model.createdAt || model.created;
+    if (dateString) {
+      try {
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      } catch {
+        // Invalid date, fall through
+      }
+    }
+    // Fallback: Extract timestamp from modelId
+    try {
+      const parts = model.modelId.split('_');
+      if (parts.length >= 3) {
+        const timestamp = parseInt(parts[2]);
+        if (!isNaN(timestamp)) {
+          return new Date(timestamp);
+        }
+      }
+    } catch {
+      // Invalid date
+    }
+    return new Date(0); // Default to epoch if no date found
+  };
+
+  // Helper function to format model date in custom format: "13th Jan, '25 03:25 PM"
+  const formatModelDate = (model: ModelInfo): string => {
+    const date = getModelDate(model);
+    if (date.getTime() === 0) {
+      return 'Unknown';
+    }
+    
+    // Get day with ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
+    const day = date.getDate();
+    const getOrdinalSuffix = (day: number): string => {
+      if (day > 3 && day < 21) return 'th';
+      switch (day % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+      }
+    };
+    
+    // Get month abbreviation
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    
+    // Get year in 2-digit format with apostrophe
+    const year = `'${date.getFullYear().toString().slice(-2)}`;
+    
+    // Get time in 12-hour format with AM/PM
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 should be 12
+    const minutesStr = minutes < 10 ? `0${minutes}` : minutes.toString();
+    const hoursStr = hours < 10 ? `0${hours}` : hours.toString();
+    
+    return `${day}${getOrdinalSuffix(day)} ${month}, ${year} ${hoursStr}:${minutesStr} ${ampm}`;
+  };
+
   // Load models on mount and when models change
   useEffect(() => {
     loadModels();
@@ -49,9 +115,37 @@ export default function LinearRegressionPage() {
     setIsLoadingModels(true);
     try {
       const response = await listModels();
-      setModels(response?.models || []);
+      console.log('List models response:', response);
+      // Handle both possible response structures
+      let modelsList: ModelInfo[] = [];
+      if (response && Array.isArray(response.models)) {
+        modelsList = response.models;
+      } else if (Array.isArray(response)) {
+        // In case the API returns an array directly
+        modelsList = response;
+      } else {
+        console.warn('Unexpected response structure:', response);
+        setModels([]);
+        return;
+      }
+      
+      // Map API response to our internal format (created -> createdAt)
+      const mappedModels = modelsList.map((model) => ({
+        ...model,
+        createdAt: model.created || model.createdAt, // Use "created" from API or fallback to createdAt
+      }));
+      
+      // Sort by creation date (newest first)
+      const sortedModels = mappedModels.sort((a, b) => {
+        const dateA = getModelDate(a);
+        const dateB = getModelDate(b);
+        return dateB.getTime() - dateA.getTime(); // Reverse chronological order
+      });
+      
+      setModels(sortedModels);
     } catch (err) {
       console.error('Error loading models:', err);
+      setError(`Failed to load models: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setModels([]); // Ensure models is always an array
     } finally {
       setIsLoadingModels(false);
@@ -70,9 +164,36 @@ export default function LinearRegressionPage() {
 
     try {
       const result = await trainLinearRegression(XMatrix, yMatrix, options, 'mse');
+      console.log('Training result:', result);
       setTrainingResult(result);
-      await loadModels(); // Refresh model list
+      setError(null);
+      
+      // Optimistically add the new model to the list immediately
+      if (result?.modelId) {
+        const newModel: ModelInfo = {
+          modelId: result.modelId,
+          type: 'linear_regression',
+          createdAt: new Date().toISOString(),
+        };
+        setModels((prev) => {
+          // Check if model already exists to avoid duplicates
+          if (prev.some(m => m.modelId === result.modelId)) {
+            return prev;
+          }
+          // Add new model and sort by date (newest first)
+          const updated = [...prev, newModel];
+          return updated.sort((a, b) => {
+            const dateA = getModelDate(a);
+            const dateB = getModelDate(b);
+            return dateB.getTime() - dateA.getTime();
+          });
+        });
+      }
+      
+      // Also refresh from server to ensure we have the latest data
+      await loadModels();
     } catch (err) {
+      console.error('Training error:', err);
       setError(err instanceof Error ? err.message : 'Training failed');
     } finally {
       setIsLoading(false);
@@ -216,7 +337,7 @@ export default function LinearRegressionPage() {
                     value={XInput}
                     onChange={(e) => setXInput(e.target.value)}
                     placeholder="1, 2, 3, 4, 5"
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:border-blue-500"
+                    className="w-full px-4 py-3 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-sans transition-all shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600"
                   />
                   {XMatrix && (
                     <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
@@ -235,7 +356,7 @@ export default function LinearRegressionPage() {
                     value={yInput}
                     onChange={(e) => setYInput(e.target.value)}
                     placeholder="3, 5, 7, 9, 11"
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:border-blue-500"
+                    className="w-full px-4 py-3 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-sans transition-all shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600"
                   />
                   {yMatrix && (
                     <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
@@ -259,7 +380,7 @@ export default function LinearRegressionPage() {
                       onChange={(e) => setOptions({ ...options, learningRate: parseFloat(e.target.value) || 0.01 })}
                       step="0.001"
                       min="0.0001"
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50"
+                      className="w-full px-4 py-3 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600"
                     />
                   </div>
                   <div>
@@ -271,22 +392,29 @@ export default function LinearRegressionPage() {
                       value={options.maxIterations}
                       onChange={(e) => setOptions({ ...options, maxIterations: parseInt(e.target.value) || 1000 })}
                       min="1"
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50"
+                      className="w-full px-4 py-3 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-black dark:text-zinc-50">
                       Method
                     </label>
-                    <select
-                      value={options.method}
-                      onChange={(e) => setOptions({ ...options, method: e.target.value as 'sgd' | 'momentum' | 'adam' })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50"
-                    >
-                      <option value="sgd">SGD</option>
-                      <option value="momentum">Momentum</option>
-                      <option value="adam">Adam</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={options.method}
+                        onChange={(e) => setOptions({ ...options, method: e.target.value as 'sgd' | 'momentum' | 'adam' })}
+                        className="w-full px-4 py-3 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 cursor-pointer appearance-none pr-10"
+                      >
+                        <option value="sgd">SGD</option>
+                        <option value="momentum">Momentum</option>
+                        <option value="adam">Adam</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg className="w-5 h-5 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -363,21 +491,42 @@ export default function LinearRegressionPage() {
           {activeTab === 'predict' && (
             <div className="space-y-6">
               <div className="border-2 border-zinc-300 dark:border-zinc-700 rounded-lg p-4 bg-zinc-50 dark:bg-zinc-900">
-                <label className="block text-sm font-medium mb-2 text-black dark:text-zinc-50">
-                  Select Model
-                </label>
-                <select
-                  value={selectedModelId}
-                  onChange={(e) => setSelectedModelId(e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50"
-                >
-                  <option value="">Choose a model...</option>
-                  {(models || []).map((model) => (
-                    <option key={model.modelId} value={model.modelId}>
-                      {model.modelId} ({model.type})
-                    </option>
-                  ))}
-                </select>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-black dark:text-zinc-50">
+                    Select Model
+                  </label>
+                  <button
+                    onClick={loadModels}
+                    disabled={isLoadingModels}
+                    className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  >
+                    {isLoadingModels ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+                <div className="relative">
+                  <select
+                    value={selectedModelId}
+                    onChange={(e) => setSelectedModelId(e.target.value)}
+                    className="w-full px-4 py-3 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-400 transition-all shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 cursor-pointer appearance-none pr-10"
+                  >
+                    <option value="">Choose a model...</option>
+                    {(models || []).map((model) => (
+                      <option key={model.modelId} value={model.modelId}>
+                        {formatModelDate(model)}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-5 h-5 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                {models && models.length === 0 && !isLoadingModels && (
+                  <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                    No models available. Train a model first.
+                  </p>
+                )}
               </div>
 
               <div className="border-2 border-zinc-300 dark:border-zinc-700 rounded-lg p-4 bg-zinc-50 dark:bg-zinc-900">
@@ -389,7 +538,7 @@ export default function LinearRegressionPage() {
                   value={predictionInput}
                   onChange={(e) => setPredictionInput(e.target.value)}
                   placeholder="1.5, 2.5, 3.5"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:border-blue-500"
+                  className="w-full px-4 py-3 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-sans transition-all shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600"
                 />
                 {predictionMatrix && (
                   <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
@@ -425,6 +574,16 @@ export default function LinearRegressionPage() {
           {/* Models Tab */}
           {activeTab === 'models' && (
             <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-black dark:text-zinc-50">Trained Models</h3>
+                <button
+                  onClick={loadModels}
+                  disabled={isLoadingModels}
+                  className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                >
+                  {isLoadingModels ? 'Refreshing...' : 'Refresh'}
+                </button>
+              </div>
               {isLoadingModels ? (
                 <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
                   <p>Loading models...</p>
@@ -445,7 +604,7 @@ export default function LinearRegressionPage() {
                           <h3 className="font-semibold text-black dark:text-zinc-50">{model.modelId}</h3>
                           <p className="text-sm text-zinc-600 dark:text-zinc-400">Type: {model.type}</p>
                           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            Created: {new Date(model.createdAt).toLocaleString()}
+                            Created: {formatModelDate(model)}
                           </p>
                         </div>
                         <button
