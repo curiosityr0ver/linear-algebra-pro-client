@@ -26,6 +26,30 @@ This project requires an environment variable to configure the API base URL. The
 
 ### Local Development
 
+You have multiple options for running the development server:
+
+#### Option 1: Using npm scripts (Recommended)
+The project includes npm scripts that allow you to switch between local and deployed servers directly from the CLI:
+
+**Use Local Server:**
+```bash
+npm run dev:local
+# This uses: http://localhost:3001
+```
+
+**Use Deployed Server:**
+```bash
+npm run dev:deployed
+# This uses: https://linear-algebra-pro-server.vercel.app
+```
+
+**Default (uses .env.local file):**
+```bash
+npm run dev
+# Uses the API URL from .env.local file (defaults to http://localhost:3001)
+```
+
+#### Option 2: Using .env.local file
 1. Copy the example environment file:
    ```bash
    cp .env.example .env.local
@@ -39,6 +63,21 @@ This project requires an environment variable to configure the API base URL. The
 3. This assumes your local API server is running on port 3001. If your server runs on a different port, update `.env.local` accordingly.
 
 4. The `.env.local` file is gitignored and will be used automatically when running `npm run dev`.
+
+#### Building for Different Environments
+
+Similar to the dev scripts, you can build for different environments:
+
+```bash
+# Build with local server URL
+npm run build:local
+
+# Build with deployed server URL
+npm run build:deployed
+
+# Default build (uses .env.local)
+npm run build
+```
 
 ### Production Deployment (Vercel)
 

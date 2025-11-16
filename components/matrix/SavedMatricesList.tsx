@@ -7,9 +7,10 @@ interface SavedMatricesListProps {
   matrices: SavedMatrix[];
   onEdit: (matrix: SavedMatrix) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (matrix: SavedMatrix) => void;
 }
 
-export default function SavedMatricesList({ matrices, onEdit, onDelete }: SavedMatricesListProps) {
+export default function SavedMatricesList({ matrices, onEdit, onDelete, onDuplicate }: SavedMatricesListProps) {
   if (matrices.length === 0) {
     return (
       <div className="w-full text-center py-12">
@@ -32,6 +33,7 @@ export default function SavedMatricesList({ matrices, onEdit, onDelete }: SavedM
             matrix={matrix}
             onEdit={onEdit}
             onDelete={onDelete}
+            onDuplicate={onDuplicate}
           />
         ))}
       </div>

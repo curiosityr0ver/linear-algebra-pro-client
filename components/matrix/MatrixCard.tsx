@@ -7,9 +7,10 @@ interface MatrixCardProps {
   matrix: SavedMatrix;
   onEdit: (matrix: SavedMatrix) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (matrix: SavedMatrix) => void;
 }
 
-export default function MatrixCard({ matrix, onEdit, onDelete }: MatrixCardProps) {
+export default function MatrixCard({ matrix, onEdit, onDelete, onDuplicate }: MatrixCardProps) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   const handleDelete = () => {
@@ -71,10 +72,16 @@ export default function MatrixCard({ matrix, onEdit, onDelete }: MatrixCardProps
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => onDuplicate(matrix)}
+          className="flex-1 min-w-[120px] px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors text-sm font-medium"
+        >
+          Duplicate
+        </button>
         <button
           onClick={() => onEdit(matrix)}
-          className="flex-1 px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors text-sm font-medium"
+          className="flex-1 min-w-[120px] px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors text-sm font-medium"
         >
           Edit
         </button>

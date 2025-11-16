@@ -106,6 +106,41 @@ export default function LinearRegressionPage() {
     return `${day}${getOrdinalSuffix(day)} ${month}, ${year} ${hoursStr}:${minutesStr} ${ampm}`;
   };
 
+  // Helper to retrieve the most descriptive model name available
+  const getModelName = (model: ModelInfo): string => {
+    const candidates = [
+      model.name,
+      model.modelName,
+      model.title,
+      model.metadata?.name,
+      model.metadata?.title,
+      model.options?.name,
+    ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+    if (candidates.length > 0) {
+      return candidates[0].trim();
+    }
+
+    const modelId = model.modelId || '';
+    const derivedName = modelId
+      .replace(/linear[-_ ]*regression[-_]?/i, '')
+      .replace(/[_-]?\d{8,}$/i, '')
+      .replace(/[_-]+/g, ' ')
+      .trim();
+
+    return derivedName || modelId || 'Unnamed Model';
+  };
+
+  const MODEL_NAME_MAX_LENGTH = 32;
+
+  const formatModelDisplayLabel = (model: ModelInfo): string => {
+    const name = getModelName(model);
+    const truncatedName =
+      name.length > MODEL_NAME_MAX_LENGTH ? `${name.slice(0, MODEL_NAME_MAX_LENGTH - 1)}…` : name;
+    const formattedDate = formatModelDate(model);
+    return formattedDate === 'Unknown' ? truncatedName : `${truncatedName} • ${formattedDate}`;
+  };
+
   // Load models on mount and when models change
   useEffect(() => {
     loadModels();
@@ -512,7 +547,7 @@ export default function LinearRegressionPage() {
                     <option value="">Choose a model...</option>
                     {(models || []).map((model) => (
                       <option key={model.modelId} value={model.modelId}>
-                        {formatModelDate(model)}
+                        {formatModelDisplayLabel(model)}
                       </option>
                     ))}
                   </select>

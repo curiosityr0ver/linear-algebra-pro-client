@@ -8,7 +8,6 @@ import Navigation from '@/components/ui/Navigation';
 import MatrixInput from '@/components/matrix/MatrixInput';
 import DimensionSelector from '@/components/matrix/DimensionSelector';
 import MatrixDisplay from '@/components/matrix/MatrixDisplay';
-import SaveMatrixButton from '@/components/matrix/SaveMatrixButton';
 import Sidebar from '@/components/ui/Sidebar';
 import EditMatrixModal from '@/components/matrix/EditMatrixModal';
 import EmptyState from '@/components/ui/EmptyState';
@@ -18,9 +17,19 @@ export default function HomePage() {
   const [input, setInput] = useState('');
   const [selectedDimensions, setSelectedDimensions] = useState<MatrixDimensions | null>(null);
   const [editingMatrix, setEditingMatrix] = useState<SavedMatrix | null>(null);
+  const [autoSavedMatrixId, setAutoSavedMatrixId] = useState<string | null>(null);
+  const [pendingNewMatrix, setPendingNewMatrix] = useState(false);
 
   // Matrix storage hook
   const { savedMatrices, saveMatrix, updateMatrix, deleteMatrix, generateNextMatrixName } = useMatrixStorage();
+
+  // Create reverse-chronological view of saved matrices for display
+  const sortedMatrices = useMemo(() => {
+    const getTimestamp = (matrix: SavedMatrix) =>
+      new Date(matrix.updatedAt || matrix.createdAt).getTime();
+
+    return [...savedMatrices].sort((a, b) => getTimestamp(b) - getTimestamp(a));
+  }, [savedMatrices]);
 
   // Parse input and validate
   const parsedValues = useMemo(() => {
@@ -39,20 +48,55 @@ export default function HomePage() {
     return reshapeToMatrix(parsedValues, selectedDimensions.rows, selectedDimensions.cols);
   }, [parsedValues, selectedDimensions]);
 
+  const autoSavedMatrix = useMemo(() => {
+    if (!autoSavedMatrixId) return null;
+    return savedMatrices.find((m) => m.id === autoSavedMatrixId) ?? null;
+  }, [savedMatrices, autoSavedMatrixId]);
+
   const isValidInput = parsedValues !== null && parsedValues.length > 0;
   const hasError = input.trim() !== '' && !isValidInput;
+
+  const handleInputChange = (value: string) => {
+    setInput(value);
+
+    if (value.trim() === '') {
+      setAutoSavedMatrixId(null);
+      setPendingNewMatrix(false);
+    } else {
+      setPendingNewMatrix(true);
+    }
+  };
 
   const handleResetSelection = () => {
     setSelectedDimensions(null);
   };
 
-  const handleSaveMatrix = () => {
-    if (matrix && selectedDimensions) {
+  const handleDimensionSelect = (dimensions: MatrixDimensions) => {
+    setSelectedDimensions(dimensions);
+
+    if (!parsedValues || parsedValues.length === 0) {
+      return;
+    }
+
+    const reshapedMatrix = reshapeToMatrix(parsedValues, dimensions.rows, dimensions.cols);
+
+    if (!reshapedMatrix) {
+      return;
+    }
+
+    const shouldCreateNew =
+      pendingNewMatrix || !autoSavedMatrixId || !autoSavedMatrix;
+
+    if (shouldCreateNew) {
       const name = generateNextMatrixName();
-      saveMatrix(name, matrix, selectedDimensions);
-      // Optionally reset after saving
-      // setInput('');
-      // setSelectedDimensions(null);
+      const saved = saveMatrix(name, reshapedMatrix, dimensions);
+      setAutoSavedMatrixId(saved.id);
+      setPendingNewMatrix(false);
+    } else {
+      updateMatrix(autoSavedMatrixId, {
+        matrix: reshapedMatrix,
+        dimensions,
+      });
     }
   };
 
@@ -83,6 +127,33 @@ export default function HomePage() {
     saveMatrix(name, result, dimensions);
   };
 
+  const handleDuplicateCurrentMatrix = () => {
+    if (!autoSavedMatrix) return;
+
+    const clonedMatrix = autoSavedMatrix.matrix.map((row) => [...row]);
+    const duplicated = saveMatrix(
+      generateNextMatrixName(),
+      clonedMatrix,
+      autoSavedMatrix.dimensions
+    );
+    setAutoSavedMatrixId(duplicated.id);
+    setPendingNewMatrix(false);
+  };
+
+  const handleDuplicateMatrix = (matrixToDuplicate: SavedMatrix) => {
+    const clonedMatrix = matrixToDuplicate.matrix.map((row) => [...row]);
+    const duplicated = saveMatrix(
+      generateNextMatrixName(),
+      clonedMatrix,
+      matrixToDuplicate.dimensions
+    );
+
+    if (autoSavedMatrixId === matrixToDuplicate.id) {
+      setAutoSavedMatrixId(duplicated.id);
+      setPendingNewMatrix(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <div className="flex flex-1 overflow-hidden">
@@ -100,7 +171,7 @@ export default function HomePage() {
               </div>
               <div className="flex-1 lg:max-w-md">
                 <OperationsPane
-                  savedMatrices={savedMatrices}
+                  savedMatrices={sortedMatrices}
                   onSaveResult={handleSaveOperationResult}
                 />
               </div>
@@ -110,7 +181,7 @@ export default function HomePage() {
           <div className="w-full max-w-6xl px-8 sm:px-16 pb-16">
             <MatrixInput
             value={input}
-            onChange={setInput}
+            onChange={handleInputChange}
             onReset={handleResetSelection}
             error={hasError}
             isValid={isValidInput}
@@ -121,7 +192,7 @@ export default function HomePage() {
             <DimensionSelector
               dimensions={possibleDimensions}
               selectedDimensions={selectedDimensions}
-              onSelect={setSelectedDimensions}
+              onSelect={handleDimensionSelect}
             />
           )}
 
@@ -131,13 +202,22 @@ export default function HomePage() {
                 matrix={matrix}
                 dimensions={selectedDimensions}
               />
-              <div className="mt-4 flex justify-start">
-                <SaveMatrixButton
-                  matrix={matrix}
-                  dimensions={selectedDimensions}
-                  onSave={handleSaveMatrix}
-                />
-              </div>
+              {autoSavedMatrix && (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Automatically saved as{' '}
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                      {autoSavedMatrix.name}
+                    </span>
+                  </p>
+                  <button
+                    onClick={handleDuplicateCurrentMatrix}
+                    className="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-600 text-sm font-medium text-zinc-700 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    Duplicate Matrix
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -149,9 +229,10 @@ export default function HomePage() {
 
         {/* Right sidebar for saved matrices - always visible */}
         <Sidebar
-          matrices={savedMatrices}
+          matrices={sortedMatrices}
           onEdit={handleEditMatrix}
           onDelete={handleDeleteMatrix}
+          onDuplicate={handleDuplicateMatrix}
         />
       </div>
 

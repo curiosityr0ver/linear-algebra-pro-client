@@ -7,9 +7,10 @@ interface SidebarProps {
   matrices: SavedMatrix[];
   onEdit: (matrix: SavedMatrix) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (matrix: SavedMatrix) => void;
 }
 
-export default function Sidebar({ matrices, onEdit, onDelete }: SidebarProps) {
+export default function Sidebar({ matrices, onEdit, onDelete, onDuplicate }: SidebarProps) {
   return (
     <aside className="w-80 h-screen fixed right-0 top-0 bg-white dark:bg-zinc-900 border-l border-zinc-300 dark:border-zinc-700 overflow-y-auto z-10">
       <div className="p-6">
@@ -31,6 +32,7 @@ export default function Sidebar({ matrices, onEdit, onDelete }: SidebarProps) {
                 matrix={matrix}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onDuplicate={onDuplicate}
               />
             ))}
           </div>
