@@ -1,110 +1,209 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
+
+# Linear Algebra Pro — Client
+
+Matrix tooling, lightweight ML playground, and an interactive knowledge hub in one cohesive Next.js experience.
+
+</div>
+
+---
+
+## Overview
+
+This repo contains the **Linear Algebra Pro** front-end: a Next.js 16 (App Router) application that lets you build matrices, run core/advanced operations, train toy linear regression models, and explore a curated knowledge hub that links all of the math concepts together.  
+
+The UI keeps everything within three primary tabs:
+
+1. **Matrix Operations** – create matrices from CSV input, auto-save drafts, run operations, and manage results in a real-time sidebar that can be collapsed when you need more canvas space.
+2. **Linear Regression** – train/predict/manage models via the companion API, inspect weights/bias, and visualize training history.
+3. **Knowledge Hub** – narrative-driven explanations (PCA, SVD, QR, etc.) that stay in sync with the rest of the app’s terminology.
+
+---
+
+## Key Features
+
+- ✍️ **Matrix Workspace** – parse comma-separated values, choose valid dimensions, preview results, and store matrices with edit/duplicate/delete actions.
+- 🧮 **Operations Suite** – core operations plus advanced panes for PCA/SVD/QR-style workflows (implemented via the shared API).
+- 💾 **Saved Matrices Panel** – fixed sidebar that can now be collapsed/expanded and maintains counts + quick actions.
+- 🤖 **Linear Regression Lab** – train models (SGD/Momentum/Adam), inspect metadata, copy IDs, and render loss history charts.
+- 📚 **Knowledge Hub** – narrative cards, algorithm explainers, and regression storyline that reference app primitives.
+- 🌗 **Dark Mode Ready** – Tailwind-utility approach for light/dark parity.
+
+---
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router, Server Components disabled via `"use client"` per page)
+- **Language:** TypeScript + React 19
+- **Styling:** Tailwind utility classes (no global Tailwind config required via Next/TW 4)
+- **Charts:** Recharts via `LossHistoryChart` (see `components/ml`)
+- **Fonts:** Geist & Geist Mono via `next/font`
+
+---
+
+## Requirements
+
+- Node.js 18.18+ (or any version supported by Next.js 16)
+- npm 9+ (or compatible package manager)
+- Access to a running **Linear Algebra Pro API** (see env configuration)
+
+---
 
 ## Getting Started
 
-First, run the development server:
+1. **Install dependencies**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+   ```bash
+   npm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Choose an API target**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   - Use `.env.local` (recommended) – see [Environment Configuration](#environment-configuration).
+   - Or rely on the provided npm scripts (`dev:local`, `dev:deployed`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. **Run the dev server**
+
+   ```bash
+   npm run dev    # honors .env.local by default
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) and start exploring the tabs.
+
+---
+
+## Available Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start Next.js dev server using `.env.local`. |
+| `npm run dev:local` | Force API base URL to `http://localhost:3001`. |
+| `npm run dev:deployed` | Force API base URL to the deployed server. |
+| `npm run build` | Production build using `.env.local`. |
+| `npm run build:local` | Production build targeting local API. |
+| `npm run build:deployed` | Production build targeting deployed API. |
+| `npm run start` | Run the Next.js production server (after `build`). |
+| `npm run lint` | Run ESLint with the Next.js config. |
+
+---
 
 ## Environment Configuration
 
-This project requires an environment variable to configure the API base URL. The application uses different API endpoints for local development and production.
+The UI talks to an API via `NEXT_PUBLIC_API_BASE_URL`. You can set it in multiple ways:
 
-### Local Development
+### Using `.env.local` (preferred)
 
-You have multiple options for running the development server:
-
-#### Option 1: Using npm scripts (Recommended)
-The project includes npm scripts that allow you to switch between local and deployed servers directly from the CLI:
-
-**Use Local Server:**
 ```bash
-npm run dev:local
-# This uses: http://localhost:3001
+cp .env.example .env.local
 ```
 
-**Use Deployed Server:**
-```bash
-npm run dev:deployed
-# This uses: https://linear-algebra-pro-server.vercel.app
+Default contents:
+
+```
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 ```
 
-**Default (uses .env.local file):**
-```bash
-npm run dev
-# Uses the API URL from .env.local file (defaults to http://localhost:3001)
+### Using scripts
+
+- `npm run dev:local` → automatically injects `http://localhost:3001`
+- `npm run dev:deployed` → automatically injects `https://linear-algebra-pro-server.vercel.app`
+
+### Building for different targets
+
 ```
-
-#### Option 2: Using .env.local file
-1. Copy the example environment file:
-   ```bash
-   cp .env.example .env.local
-   ```
-
-2. The `.env.local` file is already configured with:
-   ```
-   NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
-   ```
-
-3. This assumes your local API server is running on port 3001. If your server runs on a different port, update `.env.local` accordingly.
-
-4. The `.env.local` file is gitignored and will be used automatically when running `npm run dev`.
-
-#### Building for Different Environments
-
-Similar to the dev scripts, you can build for different environments:
-
-```bash
-# Build with local server URL
 npm run build:local
-
-# Build with deployed server URL
 npm run build:deployed
-
-# Default build (uses .env.local)
-npm run build
+npm run build        # uses .env.local
 ```
 
-### Production Deployment (Vercel)
+### Production deployment (Vercel)
 
-When deploying to Vercel, you need to set the production API URL as an environment variable:
+In Vercel’s dashboard:
 
-1. Go to your Vercel project dashboard
-2. Navigate to **Project Settings** → **Environment Variables**
-3. Add a new environment variable:
-   - **Key**: `NEXT_PUBLIC_API_BASE_URL`
-   - **Value**: `https://linear-algebra-pro-server.vercel.app`
-   - **Environment**: Select "Production" (and optionally "Preview" if you want it for preview deployments)
+1. Go to **Project Settings → Environment Variables**
+2. Add `NEXT_PUBLIC_API_BASE_URL=https://linear-algebra-pro-server.vercel.app`
+3. Scope it to Production (and Preview if desired)
+4. Redeploy
 
-4. After adding the environment variable, redeploy your application for the changes to take effect.
+> **Reminder:** Only variables prefixed with `NEXT_PUBLIC_` are accessible on the client.
 
-**Note**: The `NEXT_PUBLIC_` prefix is required for Next.js to expose the variable to the browser. Without this prefix, the variable will only be available on the server side.
+---
 
-## Learn More
+## Project Structure (high-level)
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/
+ ├─ home/               # Matrix operations workspace
+ ├─ linear-regression/  # ML playground
+ ├─ knowledge-hub/      # Narrative reference tab
+ └─ globals.css         # Base styles (Geist font)
+components/
+ ├─ matrix/             # Matrix-specific UI pieces
+ ├─ operations/         # Operation panes
+ ├─ ui/                 # Header, Navigation, Sidebar, etc.
+lib/
+ ├─ hooks/              # Client hooks (e.g., localStorage matrix store)
+ └─ utils/              # API + matrix utilities
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## UI Notes
 
-## Deploy on Vercel
+- **Navigation:** The pill-style nav in `components/ui/Navigation.tsx` keeps tab switches smooth and consistent across pages.
+- **Saved Matrices Panel:** `components/ui/Sidebar.tsx` is now collapsible (`Show/Hide` button in page header + “Hide” action inside the panel itself). The main content automatically expands when hidden.
+- **Linear Regression:** Pages under `app/linear-regression` rely on API helpers in `lib/utils/api.ts`. Ensure that API is reachable before training/predicting.
+- **Knowledge Hub:** Entirely client-side, so it works offline once bundled—helpful for demos.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Development Workflow Tips
+
+- **Matrix drafts** are persisted via `useMatrixStorage` (localStorage). Clear browser storage if you need a clean slate.
+- **Advanced operations panes** depend on `onSaveResult` to capture derived matrices—wire new operations through that callback to reuse persistence.
+- **Charting** lives in `LossHistoryChart.tsx`. If you expand analytics, keep the data shape consistent with `getModelHistory`.
+- **Dark Mode** is purely CSS class-based (no JS toggles needed). When introducing new components, follow the `.dark:` utility approach.
+
+---
+
+## Testing & Linting
+
+- Run `npm run lint` before committing; ESLint is configured via `eslint-config-next`.
+- Component-level tests are not yet included—PRs adding Vitest/Playwright coverage are welcome.
+- For UI validation, manually exercise:
+  - Matrix creation + sidebar collapse/expand
+  - Linear regression train/predict/model tabs
+  - Knowledge hub expanding cards
+
+---
+
+## Deployment
+
+1. `npm run build` (or the `:local` / `:deployed` variants).
+2. `npm run start` locally to smoke-test the production bundle.
+3. Deploy to Vercel (recommended) or any Node-capable host.
+
+If you are automating, ensure the `NEXT_PUBLIC_API_BASE_URL` env var is set in CI/CD before the build step.
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+| --- | --- |
+| API calls fail locally | Ensure the server is running on port `3001` or update `.env.local`. |
+| Saved matrices disappear | Check browser localStorage; the feature is client-side only. |
+| Sidebar overlaps content on small screens | Toggle it closed via the header button; layout is responsive but assumes ≥1024px for dual-column matrix panes. |
+| Fonts look off | Confirm `next/font` assets are loading; see console for CSP errors if self-hosting. |
+
+---
+
+## Contributing
+
+1. Fork or branch off `master`.
+2. Run `npm run lint` before pushing.
+3. Submit a PR describing the change (UI screenshots encouraged for UX tweaks).
+
+---
+
+Questions or ideas? File an issue or start a discussion—happy to iterate! 🚀
