@@ -20,6 +20,7 @@ export default function HomePage() {
   const [editingMatrix, setEditingMatrix] = useState<SavedMatrix | null>(null);
   const [autoSavedMatrixId, setAutoSavedMatrixId] = useState<string | null>(null);
   const [pendingNewMatrix, setPendingNewMatrix] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Matrix storage hook
   const { savedMatrices, saveMatrix, updateMatrix, deleteMatrix, generateNextMatrixName } = useMatrixStorage();
@@ -157,67 +158,87 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 flex flex-col items-center bg-white dark:bg-black mr-80 overflow-y-auto">
-          <div className="w-full max-w-7xl px-6 sm:px-12 py-8 space-y-6">
+      <div className="bg-white dark:bg-black">
+        <div className="w-full px-6 py-8 sm:px-12">
+          <div className="mx-auto w-full max-w-6xl space-y-4">
             <Navigation />
-            <Header
-              size="md"
-              title="Linear Algebra Pro"
-              subtitle="Build matrices, run core operations, and explore advanced algorithms."
-            />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <Header
+                size="md"
+                title="Linear Algebra Pro"
+                subtitle="Build matrices, run core operations, and explore advanced algorithms."
+              />
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen((prev) => !prev)}
+                aria-pressed={isSidebarOpen}
+                className="inline-flex items-center justify-center gap-2 self-start rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-blue-400 hover:text-blue-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-blue-500 dark:hover:text-blue-300"
+              >
+                {isSidebarOpen ? 'Hide Saved Matrices' : 'Show Saved Matrices'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-              <div className="space-y-6">
-                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-6 space-y-6">
-                  <MatrixInput
-                    value={input}
-                    onChange={handleInputChange}
-                    onReset={handleResetSelection}
-                    error={hasError}
-                    isValid={isValidInput}
-                    valueCount={parsedValues?.length || 0}
-                  />
-
-                  {isValidInput && possibleDimensions.length > 0 && (
-                    <DimensionSelector
-                      dimensions={possibleDimensions}
-                      selectedDimensions={selectedDimensions}
-                      onSelect={handleDimensionSelect}
+      <div className="flex flex-1 overflow-hidden">
+        <main
+          className={`flex flex-1 flex-col bg-white dark:bg-black overflow-y-auto transition-all duration-200 ${isSidebarOpen ? 'mr-80' : 'mr-0'}`}
+        >
+          <div className="w-full px-6 py-8 sm:px-12">
+            <div className="mx-auto w-full max-w-6xl">
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+                <div className="space-y-6">
+                  <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-6 space-y-6">
+                    <MatrixInput
+                      value={input}
+                      onChange={handleInputChange}
+                      onReset={handleResetSelection}
+                      error={hasError}
+                      isValid={isValidInput}
+                      valueCount={parsedValues?.length || 0}
                     />
-                  )}
 
-                  {matrix && selectedDimensions && (
-                    <div className="space-y-3">
-                      <MatrixDisplay matrix={matrix} dimensions={selectedDimensions} />
-                      {autoSavedMatrix && (
-                        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-2">
-                          <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                            Draft saved as{' '}
-                            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                              {autoSavedMatrix.name}
-                            </span>
-                          </p>
-                          <button
-                            onClick={handleDuplicateCurrentMatrix}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                          >
-                            Duplicate
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    {isValidInput && possibleDimensions.length > 0 && (
+                      <DimensionSelector
+                        dimensions={possibleDimensions}
+                        selectedDimensions={selectedDimensions}
+                        onSelect={handleDimensionSelect}
+                      />
+                    )}
 
-                  {!matrix && (!isValidInput || input.trim() === '') && (
-                    <EmptyState message="Enter comma-separated values to get started" />
-                  )}
+                    {matrix && selectedDimensions && (
+                      <div className="space-y-3">
+                        <MatrixDisplay matrix={matrix} dimensions={selectedDimensions} />
+                        {autoSavedMatrix && (
+                          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-2">
+                            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                              Draft saved as{' '}
+                              <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                {autoSavedMatrix.name}
+                              </span>
+                            </p>
+                            <button
+                              onClick={handleDuplicateCurrentMatrix}
+                              className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                            >
+                              Duplicate
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!matrix && (!isValidInput || input.trim() === '') && (
+                      <EmptyState message="Enter comma-separated values to get started" />
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-6">
-                <OperationsPane savedMatrices={sortedMatrices} onSaveResult={handleSaveOperationResult} />
-                <AdvancedOperationsPane savedMatrices={sortedMatrices} onSaveResult={handleSaveOperationResult} />
+                <div className="space-y-6">
+                  <OperationsPane savedMatrices={sortedMatrices} onSaveResult={handleSaveOperationResult} />
+                  <AdvancedOperationsPane savedMatrices={sortedMatrices} onSaveResult={handleSaveOperationResult} />
+                </div>
               </div>
             </div>
           </div>
@@ -228,6 +249,8 @@ export default function HomePage() {
           onEdit={handleEditMatrix}
           onDelete={handleDeleteMatrix}
           onDuplicate={handleDuplicateMatrix}
+          isOpen={isSidebarOpen}
+          onToggle={() => setIsSidebarOpen((prev) => !prev)}
         />
       </div>
 

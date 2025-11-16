@@ -383,16 +383,23 @@ export default function LinearRegressionPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex-1 flex flex-col items-center bg-white dark:bg-black overflow-y-auto">
-        <div className="w-full max-w-6xl px-8 sm:px-16 py-8">
-          <Navigation />
-          <Header
-            title="Linear Regression"
-            subtitle="Train and use linear regression models for predictions"
-          />
+      <div className="bg-white dark:bg-black">
+        <div className="w-full px-6 py-8 sm:px-12">
+          <div className="mx-auto w-full max-w-6xl space-y-6">
+            <Navigation />
+            <Header
+              title="Linear Regression"
+              subtitle="Train and use linear regression models for predictions"
+            />
+          </div>
+        </div>
+      </div>
 
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 border-b border-zinc-300 dark:border-zinc-700">
+      <main className="flex-1 flex flex-col bg-white dark:bg-black overflow-y-auto">
+        <div className="w-full px-6 py-8 sm:px-12">
+          <div className="mx-auto w-full max-w-6xl space-y-6">
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-zinc-300 dark:border-zinc-700">
             <button
               onClick={() => setActiveTab('train')}
               className={`px-4 py-2 font-medium transition-colors ${
@@ -900,8 +907,9 @@ export default function LinearRegressionPage() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
+  </div>
   );
 }
 
