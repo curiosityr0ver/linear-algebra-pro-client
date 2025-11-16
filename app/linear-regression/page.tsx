@@ -1,18 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/ui/Header';
 import Navigation from '@/components/ui/Navigation';
-import { 
-  trainLinearRegression, 
-  predictLinearRegression, 
-  listModels, 
+import LossHistoryChart from '@/components/ml/LossHistoryChart';
+import {
+  trainLinearRegression,
+  predictLinearRegression,
+  listModels,
   deleteModel,
+  getModelInfo,
+  getModelHistory,
   LinearRegressionOptions,
   ModelInfo,
-  LinearRegressionTrainResponse
+  LinearRegressionTrainResponse,
+  ModelHistoryResponse,
 } from '@/lib/utils/api';
-import { parseMatrixInput, reshapeToMatrix, calculatePossibleDimensions } from '@/lib/utils/matrix';
+import { parseMatrixInput } from '@/lib/utils/matrix';
 
 export default function LinearRegressionPage() {
   const [activeTab, setActiveTab] = useState<'train' | 'predict' | 'models'>('train');
@@ -20,6 +24,7 @@ export default function LinearRegressionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiedModelId, setCopiedModelId] = useState<string | null>(null);
 
   // Training state
   const [XInput, setXInput] = useState('');
@@ -35,10 +40,20 @@ export default function LinearRegressionPage() {
   });
 
   // Prediction state
-  const [selectedModelId, setSelectedModelId] = useState<string>('');
+  const [selectedPredictionModelId, setSelectedPredictionModelId] = useState<string>('');
   const [predictionInput, setPredictionInput] = useState('');
   const [predictionMatrix, setPredictionMatrix] = useState<number[][] | null>(null);
   const [predictions, setPredictions] = useState<number[][] | null>(null);
+
+  // Model details state
+  const [selectedDetailsModelId, setSelectedDetailsModelId] = useState<string | null>(null);
+  const [modelDetails, setModelDetails] = useState<ModelInfo | null>(null);
+  const [modelHistory, setModelHistory] = useState<ModelHistoryResponse | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  const selectedModelSummary = models.find((model) => model.modelId === selectedDetailsModelId);
+  const detailSource = modelDetails || selectedModelSummary || null;
 
   // Helper function to get model date
   const getModelDate = (model: ModelInfo): Date => {
@@ -142,42 +157,31 @@ export default function LinearRegressionPage() {
   };
 
   // Load models on mount and when models change
-  useEffect(() => {
-    loadModels();
-  }, []);
-
-  const loadModels = async () => {
+  const loadModels = useCallback(async () => {
     setIsLoadingModels(true);
     try {
-      const response = await listModels();
-      console.log('List models response:', response);
-      // Handle both possible response structures
-      let modelsList: ModelInfo[] = [];
-      if (response && Array.isArray(response.models)) {
-        modelsList = response.models;
-      } else if (Array.isArray(response)) {
-        // In case the API returns an array directly
-        modelsList = response;
-      } else {
-        console.warn('Unexpected response structure:', response);
-        setModels([]);
-        return;
-      }
-      
-      // Map API response to our internal format (created -> createdAt)
-      const mappedModels = modelsList.map((model) => ({
-        ...model,
-        createdAt: model.created || model.createdAt, // Use "created" from API or fallback to createdAt
-      }));
-      
+      const modelsList = await listModels();
+
       // Sort by creation date (newest first)
-      const sortedModels = mappedModels.sort((a, b) => {
+      const sortedModels = [...modelsList].sort((a, b) => {
         const dateA = getModelDate(a);
         const dateB = getModelDate(b);
         return dateB.getTime() - dateA.getTime(); // Reverse chronological order
       });
       
       setModels(sortedModels);
+      setSelectedDetailsModelId((currentId) => {
+        if (!currentId) {
+          return currentId;
+        }
+        const stillExists = sortedModels.some((model) => model.modelId === currentId);
+        if (!stillExists) {
+          setModelDetails(null);
+          setModelHistory(null);
+          return null;
+        }
+        return currentId;
+      });
     } catch (err) {
       console.error('Error loading models:', err);
       setError(`Failed to load models: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -185,6 +189,44 @@ export default function LinearRegressionPage() {
     } finally {
       setIsLoadingModels(false);
     }
+  }, []);
+
+  useEffect(() => {
+    loadModels();
+  }, [loadModels]);
+
+  const fetchModelDetails = async (modelId: string) => {
+    setIsLoadingDetails(true);
+    try {
+      const info = await getModelInfo(modelId);
+      setModelDetails(info);
+    } catch (err) {
+      console.error('Error loading model details:', err);
+      setError(`Failed to load model details: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
+  const fetchModelHistory = async (modelId: string) => {
+    setIsLoadingHistory(true);
+    try {
+      const history = await getModelHistory(modelId);
+      setModelHistory(history);
+    } catch (err) {
+      console.error('Error loading model history:', err);
+      setError(`Failed to load loss history: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const focusModelDetails = (modelId: string) => {
+    setSelectedDetailsModelId(modelId);
+    setModelDetails(null);
+    setModelHistory(null);
+    fetchModelDetails(modelId);
+    fetchModelHistory(modelId);
   };
 
   const handleTrain = async () => {
@@ -223,6 +265,8 @@ export default function LinearRegressionPage() {
             return dateB.getTime() - dateA.getTime();
           });
         });
+
+        focusModelDetails(result.modelId);
       }
       
       // Also refresh from server to ensure we have the latest data
@@ -236,7 +280,7 @@ export default function LinearRegressionPage() {
   };
 
   const handlePredict = async () => {
-    if (!selectedModelId) {
+    if (!selectedPredictionModelId) {
       setError('Please select a model');
       return;
     }
@@ -250,7 +294,7 @@ export default function LinearRegressionPage() {
     setPredictions(null);
 
     try {
-      const result = await predictLinearRegression(selectedModelId, predictionMatrix);
+      const result = await predictLinearRegression(selectedPredictionModelId, predictionMatrix);
       setPredictions(result.predictions.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Prediction failed');
@@ -267,12 +311,42 @@ export default function LinearRegressionPage() {
     try {
       await deleteModel(modelId);
       await loadModels();
-      if (selectedModelId === modelId) {
-        setSelectedModelId('');
+      if (selectedPredictionModelId === modelId) {
+        setSelectedPredictionModelId('');
+      }
+      if (selectedDetailsModelId === modelId) {
+        setSelectedDetailsModelId(null);
+        setModelDetails(null);
+        setModelHistory(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete model');
     }
+  };
+
+  const handleUseModelForPrediction = (modelId: string) => {
+    setSelectedPredictionModelId(modelId);
+    setActiveTab('predict');
+  };
+
+  const handleCopyModelId = async (modelId: string) => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      setError('Clipboard API is not available in this environment.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(modelId);
+      setCopiedModelId(modelId);
+      setTimeout(() => setCopiedModelId(null), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to copy model ID');
+    }
+  };
+
+  const handleRefreshDetails = () => {
+    if (!selectedDetailsModelId) return;
+    fetchModelDetails(selectedDetailsModelId);
+    fetchModelHistory(selectedDetailsModelId);
   };
 
   // Parse X input
@@ -540,8 +614,8 @@ export default function LinearRegressionPage() {
                 </div>
                 <div className="relative">
                   <select
-                    value={selectedModelId}
-                    onChange={(e) => setSelectedModelId(e.target.value)}
+                    value={selectedPredictionModelId}
+                    onChange={(e) => setSelectedPredictionModelId(e.target.value)}
                     className="w-full px-4 py-3 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-black dark:text-zinc-50 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-400 transition-all shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 cursor-pointer appearance-none pr-10"
                   >
                     <option value="">Choose a model...</option>
@@ -584,7 +658,7 @@ export default function LinearRegressionPage() {
 
               <button
                 onClick={handlePredict}
-                disabled={isLoading || !selectedModelId || !predictionMatrix}
+                disabled={isLoading || !selectedPredictionModelId || !predictionMatrix}
                 className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
               >
                 {isLoading ? 'Predicting...' : 'Make Prediction'}
@@ -608,55 +682,278 @@ export default function LinearRegressionPage() {
 
           {/* Models Tab */}
           {activeTab === 'models' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-black dark:text-zinc-50">Trained Models</h3>
-                <button
-                  onClick={loadModels}
-                  disabled={isLoadingModels}
-                  className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                >
-                  {isLoadingModels ? 'Refreshing...' : 'Refresh'}
-                </button>
+            <div className="space-y-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-black dark:text-zinc-50">Trained Models</h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Explore metadata, parameters, and training history for each saved model.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={loadModels}
+                    disabled={isLoadingModels}
+                    className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  >
+                    {isLoadingModels ? 'Refreshing...' : 'Refresh List'}
+                  </button>
+                  <button
+                    onClick={handleRefreshDetails}
+                    disabled={!selectedDetailsModelId || isLoadingDetails || isLoadingHistory}
+                    className="px-4 py-2 text-sm border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-700 dark:text-zinc-100 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Reload Selection
+                  </button>
+                </div>
               </div>
-              {isLoadingModels ? (
-                <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-                  <p>Loading models...</p>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,360px)_1fr]">
+                <div className="border-2 border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900/40 p-4">
+                  {isLoadingModels ? (
+                    <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">Loading models…</div>
+                  ) : !models || models.length === 0 ? (
+                    <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
+                      No models trained yet. Train a model to get started.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {(models || []).map((model) => {
+                        const isSelected = model.modelId === selectedDetailsModelId;
+                        return (
+                          <button
+                            type="button"
+                            key={model.modelId}
+                            onClick={() => focusModelDetails(model.modelId)}
+                            className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/20'
+                                : 'border-zinc-200 dark:border-zinc-800 hover:border-blue-300 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-black dark:text-zinc-50">
+                                  {getModelName(model)}
+                                </p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                  {formatModelDate(model)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                  Final Loss
+                                </p>
+                                <p className="font-mono text-base text-zinc-900 dark:text-zinc-100">
+                                  {model.final_loss !== undefined ? model.final_loss.toFixed(4) : '—'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                              <div className="rounded-lg bg-zinc-100 dark:bg-zinc-800/60 px-2 py-1">
+                                Optimizer: {model.optimizer || '—'}
+                              </div>
+                              <div className="rounded-lg bg-zinc-100 dark:bg-zinc-800/60 px-2 py-1">
+                                Iterations: {model.iterations ?? '—'}
+                              </div>
+                              <div className="rounded-lg bg-zinc-100 dark:bg-zinc-800/60 px-2 py-1">
+                                Loss Fn: {model.lossFunction || '—'}
+                              </div>
+                              <div className="rounded-lg bg-zinc-100 dark:bg-zinc-800/60 px-2 py-1">
+                                Status:{' '}
+                                <span className={model.converged ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}>
+                                  {model.converged ? 'Converged' : 'Not converged'}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              ) : !models || models.length === 0 ? (
-                <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-                  <p>No models trained yet. Train a model to get started.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {(models || []).map((model) => (
-                    <div
-                      key={model.modelId}
-                      className="border-2 border-zinc-300 dark:border-zinc-700 rounded-lg p-4 bg-zinc-50 dark:bg-zinc-900"
-                    >
-                      <div className="flex justify-between items-start">
+
+                <div className="border-2 border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900/40 p-6 min-h-[420px] flex flex-col gap-6">
+                  {selectedDetailsModelId && detailSource ? (
+                    <>
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
-                          <h3 className="font-semibold text-black dark:text-zinc-50">{model.modelId}</h3>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400">Type: {model.type}</p>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            Created: {formatModelDate(model)}
+                          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            Selected Model
+                          </p>
+                          <h4 className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                            {getModelName(detailSource)}
+                          </h4>
+                          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                            {formatModelDate(detailSource)}
+                          </p>
+                          <p className="mt-2 font-mono text-xs text-zinc-400 dark:text-zinc-500 break-all">
+                            {selectedDetailsModelId}
                           </p>
                         </div>
-                        <button
-                          onClick={() => handleDeleteModel(model.modelId)}
-                          className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleUseModelForPrediction(selectedDetailsModelId)}
+                            className="px-3 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            Use for Predictions
+                          </button>
+                          <button
+                            onClick={() => handleCopyModelId(selectedDetailsModelId)}
+                            className="px-3 py-2 text-xs font-medium rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
+                          >
+                            {copiedModelId === selectedDetailsModelId ? 'Copied!' : 'Copy Model ID'}
+                          </button>
+                          <button
+                            onClick={handleRefreshDetails}
+                            disabled={isLoadingDetails || isLoadingHistory}
+                            className="px-3 py-2 text-xs font-medium rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Refresh Details
+                          </button>
+                          <button
+                            onClick={() => handleDeleteModel(selectedDetailsModelId)}
+                            className="px-3 py-2 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                          >
+                            Delete Model
+                          </button>
+                        </div>
                       </div>
+
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <StatisticCard label="Final Loss" value={detailSource.final_loss} format="decimal" />
+                        <StatisticCard label="Iterations" value={detailSource.iterations} format="integer" />
+                        <StatisticCard label="Optimizer" value={detailSource.optimizer} format="text" />
+                        <StatisticCard label="Loss Function" value={detailSource.lossFunction} format="text" />
+                      </div>
+
+                      <div>
+                        <h5 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Weights &amp; Bias</h5>
+                        {isLoadingDetails ? (
+                          <div className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Loading parameters…</div>
+                        ) : modelDetails?.result ? (
+                          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <MatrixPreviewCard label="Weights" values={modelDetails.result.weights?.data} />
+                            <MatrixPreviewCard label="Bias" values={modelDetails.result.bias?.data} />
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                            Parameter details will appear once loaded.
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Training History</h5>
+                          <button
+                            onClick={handleRefreshDetails}
+                            disabled={isLoadingHistory}
+                            className="text-xs text-blue-600 hover:text-blue-700 disabled:text-zinc-400 disabled:cursor-not-allowed"
+                          >
+                            {isLoadingHistory ? 'Refreshing…' : 'Refresh'}
+                          </button>
+                        </div>
+                        {isLoadingHistory ? (
+                          <div className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Loading loss history…</div>
+                        ) : modelHistory && modelHistory.modelId === selectedDetailsModelId ? (
+                          <div className="mt-4 space-y-4">
+                            <LossHistoryChart data={modelHistory.loss_history} />
+                            <div className="grid grid-cols-2 gap-4 text-sm text-zinc-600 dark:text-zinc-300">
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Iterations</p>
+                                <p className="mt-1 text-lg font-semibold">{modelHistory.iterations}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Converged</p>
+                                <p className="mt-1 text-lg font-semibold">
+                                  {modelHistory.converged ? 'Yes' : 'No'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Final Loss</p>
+                                <p className="mt-1 text-lg font-semibold">
+                                  {modelHistory.final_loss.toFixed(6)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Optimizer</p>
+                                <p className="mt-1 text-lg font-semibold">{modelHistory.optimizer || '—'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                            Loss history will load once selected.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="m-auto text-center text-zinc-500 dark:text-zinc-400">
+                      <p className="text-base font-medium">Select a model to inspect its details.</p>
+                      <p className="text-sm mt-1">Choose any model from the list on the left.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+interface StatisticCardProps {
+  label: string;
+  value?: number | string | null;
+  format?: 'decimal' | 'integer' | 'text';
+}
+
+function StatisticCard({ label, value, format = 'decimal' }: StatisticCardProps) {
+  let display: string = '—';
+
+  if (value !== undefined && value !== null) {
+    if (typeof value === 'number') {
+      if (format === 'integer') {
+        display = Math.round(value).toString();
+      } else if (format === 'text') {
+        display = value.toString();
+      } else {
+        display = value.toFixed(4);
+      }
+    } else {
+      display = value;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-4">
+      <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{display}</p>
+    </div>
+  );
+}
+
+interface MatrixPreviewCardProps {
+  label: string;
+  values?: number[][];
+}
+
+function MatrixPreviewCard({ label, values }: MatrixPreviewCardProps) {
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/30 p-4">
+      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-50">{label}</p>
+      {values && values.length > 0 ? (
+        <div className="mt-3 space-y-1 font-mono text-xs text-zinc-600 dark:text-zinc-300">
+          {values.map((row, index) => (
+            <div key={`${label}-${index}`}>[{row.join(', ')}]</div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">No data available.</p>
+      )}
     </div>
   );
 }

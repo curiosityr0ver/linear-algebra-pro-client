@@ -12,6 +12,7 @@ import Sidebar from '@/components/ui/Sidebar';
 import EditMatrixModal from '@/components/matrix/EditMatrixModal';
 import EmptyState from '@/components/ui/EmptyState';
 import OperationsPane from '@/components/operations/OperationsPane';
+import AdvancedOperationsPane from '@/components/operations/AdvancedOperationsPane';
 
 export default function HomePage() {
   const [input, setInput] = useState('');
@@ -157,77 +158,71 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <div className="flex flex-1 overflow-hidden">
-        {/* Main content area - adjusts for sidebar */}
         <main className="flex-1 flex flex-col items-center bg-white dark:bg-black mr-80 overflow-y-auto">
-          {/* Header and Operations Pane side by side */}
-          <div className="w-full max-w-6xl px-8 sm:px-16 py-8">
+          <div className="w-full max-w-7xl px-6 sm:px-12 py-8 space-y-6">
             <Navigation />
-            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center mb-6">
-              <div className="flex-1">
-                <Header 
-                  title="Linear Algebra Pro"
-                  subtitle="Input matrix values as comma-separated numbers"
-                />
-              </div>
-              <div className="flex-1 lg:max-w-md">
-                <OperationsPane
-                  savedMatrices={sortedMatrices}
-                  onSaveResult={handleSaveOperationResult}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="w-full max-w-6xl px-8 sm:px-16 pb-16">
-            <MatrixInput
-            value={input}
-            onChange={handleInputChange}
-            onReset={handleResetSelection}
-            error={hasError}
-            isValid={isValidInput}
-            valueCount={parsedValues?.length || 0}
-          />
-
-          {isValidInput && possibleDimensions.length > 0 && (
-            <DimensionSelector
-              dimensions={possibleDimensions}
-              selectedDimensions={selectedDimensions}
-              onSelect={handleDimensionSelect}
+            <Header
+              size="md"
+              title="Linear Algebra Pro"
+              subtitle="Build matrices, run core operations, and explore advanced algorithms."
             />
-          )}
 
-          {matrix && selectedDimensions && (
-            <div className="w-full mb-8">
-              <MatrixDisplay
-                matrix={matrix}
-                dimensions={selectedDimensions}
-              />
-              {autoSavedMatrix && (
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Automatically saved as{' '}
-                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                      {autoSavedMatrix.name}
-                    </span>
-                  </p>
-                  <button
-                    onClick={handleDuplicateCurrentMatrix}
-                    className="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-600 text-sm font-medium text-zinc-700 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                  >
-                    Duplicate Matrix
-                  </button>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-6 space-y-6">
+                  <MatrixInput
+                    value={input}
+                    onChange={handleInputChange}
+                    onReset={handleResetSelection}
+                    error={hasError}
+                    isValid={isValidInput}
+                    valueCount={parsedValues?.length || 0}
+                  />
+
+                  {isValidInput && possibleDimensions.length > 0 && (
+                    <DimensionSelector
+                      dimensions={possibleDimensions}
+                      selectedDimensions={selectedDimensions}
+                      onSelect={handleDimensionSelect}
+                    />
+                  )}
+
+                  {matrix && selectedDimensions && (
+                    <div className="space-y-3">
+                      <MatrixDisplay matrix={matrix} dimensions={selectedDimensions} />
+                      {autoSavedMatrix && (
+                        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-2">
+                          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                            Draft saved as{' '}
+                            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                              {autoSavedMatrix.name}
+                            </span>
+                          </p>
+                          <button
+                            onClick={handleDuplicateCurrentMatrix}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                          >
+                            Duplicate
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!matrix && (!isValidInput || input.trim() === '') && (
+                    <EmptyState message="Enter comma-separated values to get started" />
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
 
-          {!isValidInput && input.trim() === '' && (
-            <EmptyState message="Enter comma-separated values to get started" />
-          )}
+              <div className="space-y-6">
+                <OperationsPane savedMatrices={sortedMatrices} onSaveResult={handleSaveOperationResult} />
+                <AdvancedOperationsPane savedMatrices={sortedMatrices} onSaveResult={handleSaveOperationResult} />
+              </div>
+            </div>
           </div>
         </main>
 
-        {/* Right sidebar for saved matrices - always visible */}
         <Sidebar
           matrices={sortedMatrices}
           onEdit={handleEditMatrix}
@@ -236,7 +231,6 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Edit Matrix Modal */}
       {editingMatrix && (
         <EditMatrixModal
           matrix={editingMatrix}

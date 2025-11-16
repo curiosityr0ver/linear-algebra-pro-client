@@ -10,7 +10,6 @@ import {
   calculateDeterminant,
   MatrixOperationResponse 
 } from '@/lib/utils/api';
-import MatrixDisplay from '@/components/matrix/MatrixDisplay';
 
 interface OperationsPaneProps {
   savedMatrices: SavedMatrix[];
@@ -142,13 +141,12 @@ export default function OperationsPane({ savedMatrices, onSaveResult }: Operatio
       : (selectedOperation === 'transpose' || selectedOperation === 'determinant'));
 
   return (
-    <div className="w-full border-2 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
+    <div className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 shadow-sm">
       <div className="p-4">
-        <h2 className="text-lg font-semibold mb-3 text-black dark:text-zinc-50">
-          Operations
+        <h2 className="text-base font-semibold mb-2 text-black dark:text-zinc-50">
+          Core Operations
         </h2>
 
-        {/* Operation Buttons */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           <button
             onClick={() => handleOperationSelect(null)}

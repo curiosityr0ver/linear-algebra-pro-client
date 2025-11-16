@@ -27,7 +27,7 @@ export interface MatrixOperationResponse {
   result: MatrixResult;
   metadata?: {
     operation: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -87,17 +87,26 @@ function toMatrix(data: number[][]): Matrix {
 /**
  * Handle API errors
  */
+type ErrorPayload = { message?: string | string[] };
+
 async function handleApiError(response: Response): Promise<never> {
-  let errorData: ApiError | any;
+  const fallbackMessage = `HTTP error! status: ${response.status}`;
+  let errorData: ErrorPayload = {};
   try {
-    errorData = await response.json();
+    const parsed = (await response.json()) as unknown;
+    if (typeof parsed === 'object' && parsed !== null && 'message' in parsed) {
+      errorData = parsed as ErrorPayload;
+    } else {
+      errorData = { message: fallbackMessage };
+    }
   } catch {
-    errorData = { message: `HTTP error! status: ${response.status}` };
+    errorData = { message: fallbackMessage };
   }
   
-  const errorMessage = Array.isArray(errorData.message) 
-    ? errorData.message.join(', ') 
-    : errorData.message || `HTTP error! status: ${response.status}`;
+  const messageValue = errorData.message;
+  const errorMessage = Array.isArray(messageValue)
+    ? messageValue.join(', ')
+    : messageValue || fallbackMessage;
   
   throw new Error(errorMessage);
 }
@@ -444,16 +453,79 @@ export interface LinearRegressionPredictResponse {
   predictions: MatrixResult;
 }
 
+export interface ModelMetadata {
+  name?: string;
+  title?: string;
+  created?: string;
+  [key: string]: unknown;
+}
+
 export interface ModelInfo {
   modelId: string;
   type: string;
-  created?: string; // API returns "created" field
-  createdAt?: string; // Internal field for consistency
-  [key: string]: any;
+  created?: string; // API may return "created"
+  createdAt?: string; // Normalised ISO string for UI
+  optimizer?: string;
+  lossFunction?: string;
+  iterations?: number;
+  final_loss?: number;
+  converged?: boolean;
+  metadata?: ModelMetadata;
+  options?: LinearRegressionOptions & { name?: string };
+  result?: LinearRegressionTrainResponse['result'];
 }
 
 export interface ModelListResponse {
   models: ModelInfo[];
+}
+
+export interface ModelHistoryResponse {
+  modelId: string;
+  loss_history: number[];
+  iterations: number;
+  converged: boolean;
+  final_loss: number;
+  lossFunction?: 'mse' | 'binary_crossentropy' | string;
+  optimizer?: 'sgd' | 'momentum' | 'adam' | string;
+}
+
+export interface PCATrainResponse {
+  X_transformed: MatrixResult;
+  components: MatrixResult;
+  mean: MatrixResult;
+  explained_variance: number[];
+  explained_variance_ratio: number[];
+  n_components: number;
+}
+
+export interface PCATransformResponse {
+  X_transformed: MatrixResult;
+}
+
+export interface SVDDecomposeResponse {
+  U: MatrixResult;
+  Sigma: MatrixResult;
+  VT: MatrixResult;
+  singular_values: number[];
+  condition_number: number;
+  numerical_rank: number;
+}
+
+export interface SVDReconstructResponse {
+  reconstruction: MatrixResult;
+  rank: number;
+}
+
+export interface QRDecomposeResponse {
+  Q: MatrixResult;
+  R: MatrixResult;
+  determinant: number;
+  rank: number;
+}
+
+export interface QRSolveResponse {
+  solution: MatrixResult;
+  verification: MatrixResult;
 }
 
 /**
@@ -497,17 +569,48 @@ export async function predictLinearRegression(
 /**
  * List all trained models
  */
-export async function listModels(): Promise<ModelListResponse> {
-  return apiRequest<ModelListResponse>('/ml/models', {
+function normalizeModel(model: ModelInfo): ModelInfo {
+  const rawCreated =
+    model.created ||
+    model.createdAt ||
+    (typeof model.metadata?.created === 'string' ? model.metadata.created : undefined);
+
+  const parsedDate = rawCreated ? new Date(rawCreated) : undefined;
+  const normalizedCreatedAt =
+    parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : undefined;
+
+  return {
+    ...model,
+    created: rawCreated,
+    createdAt: normalizedCreatedAt,
+  };
+}
+
+export async function listModels(): Promise<ModelInfo[]> {
+  const response = await apiRequest<ModelListResponse | ModelInfo[]>('/ml/models', {
     method: 'GET',
   });
+
+  const models = Array.isArray(response) ? response : response?.models || [];
+  return models.map(normalizeModel);
 }
 
 /**
  * Get information about a specific model
  */
 export async function getModelInfo(modelId: string): Promise<ModelInfo> {
-  return apiRequest<ModelInfo>(`/ml/models/${modelId}`, {
+  const model = await apiRequest<ModelInfo>(`/ml/models/${modelId}`, {
+    method: 'GET',
+  });
+
+  return normalizeModel(model);
+}
+
+/**
+ * Get loss history for a trained model
+ */
+export async function getModelHistory(modelId: string): Promise<ModelHistoryResponse> {
+  return apiRequest<ModelHistoryResponse>(`/ml/models/${modelId}/history`, {
     method: 'GET',
   });
 }
@@ -518,5 +621,84 @@ export async function getModelInfo(modelId: string): Promise<ModelInfo> {
 export async function deleteModel(modelId: string): Promise<{ message: string }> {
   return apiRequest<{ message: string }>(`/ml/models/${modelId}`, {
     method: 'DELETE',
+  });
+}
+
+// ============================================================================
+// Advanced Algorithms - PCA / SVD / QR
+// ============================================================================
+
+export async function trainPCA(
+  X: number[][],
+  nComponents?: number
+): Promise<PCATrainResponse> {
+  return apiRequest<PCATrainResponse>('/advanced/pca/train', {
+    method: 'POST',
+    body: JSON.stringify({
+      X: toMatrix(X),
+      ...(nComponents ? { nComponents } : {}),
+    }),
+  });
+}
+
+export async function transformPCA(
+  X: number[][],
+  trainedPCA: PCATrainResponse
+): Promise<PCATransformResponse> {
+  return apiRequest<PCATransformResponse>('/advanced/pca/transform', {
+    method: 'POST',
+    body: JSON.stringify({
+      X: toMatrix(X),
+      trainedPCA,
+    }),
+  });
+}
+
+export async function decomposeSVD(
+  matrix: number[][],
+  options?: { maxIterations?: number; tolerance?: number }
+): Promise<SVDDecomposeResponse> {
+  return apiRequest<SVDDecomposeResponse>('/advanced/svd/decompose', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrix: toMatrix(matrix),
+      ...(options?.maxIterations ? { maxIterations: options.maxIterations } : {}),
+      ...(options?.tolerance ? { tolerance: options.tolerance } : {}),
+    }),
+  });
+}
+
+export async function reconstructSVD(
+  matrix: number[][],
+  k: number
+): Promise<SVDReconstructResponse> {
+  return apiRequest<SVDReconstructResponse>('/advanced/svd/reconstruct', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrix: toMatrix(matrix),
+      k,
+    }),
+  });
+}
+
+export async function decomposeQR(matrix: number[][]): Promise<QRDecomposeResponse> {
+  return apiRequest<QRDecomposeResponse>('/advanced/qr/decompose', {
+    method: 'POST',
+    body: JSON.stringify({
+      matrix: toMatrix(matrix),
+    }),
+  });
+}
+
+export async function solveQR(
+  A: number[][],
+  b: number[][]
+): Promise<QRSolveResponse> {
+  return apiRequest<QRSolveResponse>('/advanced/qr/solve', {
+    method: 'POST',
+    body: JSON.stringify({
+      A: toMatrix(A),
+      b: toMatrix(b),
+    }),
   });
 }
