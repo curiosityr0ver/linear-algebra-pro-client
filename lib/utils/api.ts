@@ -463,6 +463,9 @@ export interface ModelMetadata {
 export interface ModelInfo {
   modelId: string;
   type: string;
+  name?: string;
+  modelName?: string;
+  title?: string;
   created?: string; // API may return "created"
   createdAt?: string; // Normalised ISO string for UI
   optimizer?: string;
